@@ -1,0 +1,55 @@
+name: Functional test
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  functional-test:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: "yes"
+          MARIADB_DATABASE: test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_USER: root
+      DB_NAME: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Start the application
+        run: nohup python app.py > app.log 2>&1 &
+
+      - name: Check the home page
+        run: |
+          for i in $(seq 1 15); do
+            curl -sf http://localhost:5000/ > /dev/null && break
+            sleep 1
+          done
+          response=$(curl -sf http://localhost:5000/)
+          echo "Response: $response"
+          test "$response" = "Database Connection Status: Connected"
+
+      - name: Show application logs
+        if: failure()
+        run: cat app.log
