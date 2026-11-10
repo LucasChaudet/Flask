@@ -24,7 +24,7 @@ jobs:
           --health-timeout=5s
           --health-retries=10
     env:
-      DB_HOST: 127.0.0.1
+      DB_HOST: unreachable-db
       DB_USER: root
       DB_NAME: test
     steps:
